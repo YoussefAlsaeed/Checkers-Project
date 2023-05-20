@@ -1,0 +1,5 @@
+*** VERY IMPORTANT ***
+
+pip install pygame
+
+pip install PyQt5
