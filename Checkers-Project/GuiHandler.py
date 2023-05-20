@@ -169,4 +169,162 @@ class Piece:
 		self.king = True
 		self.value = 2
 
+"""
+The Graphics class handles the display and user interface. It has methods for setting up the game window, updating the display, and drawing the board and pieces.
+It also has a method for drawing messages to the screen.
+"""
 
+class Graphics:
+	def __init__(self):
+		self.caption = "Checkers"
+
+		self.fps = 60
+		self.clock = pygame.time.Clock()
+
+		self.window_size = 600
+		self.screen = pygame.display.set_mode((self.window_size, self.window_size))
+		self.background = pygame.image.load('resources/board.png')
+
+		self.square_size = self.window_size // 8
+		self.piece_size = self.square_size // 2
+
+		self.message = False
+
+	def setup_window(self):
+		pygame.init()
+		pygame.display.set_caption(self.caption)
+
+
+	def pixel_coords(self, board_coords):
+
+		return (board_coords[0] * self.square_size + self.piece_size, board_coords[1] * self.square_size + self.piece_size)
+
+	def board_coords(self, pixel_x, pixel_y):
+
+		return (pixel_x // self.square_size, pixel_y // self.square_size)
+
+	def highlight_squares(self, squares, origin):
+
+		for square in squares:
+			pygame.draw.rect(self.screen, HIGH, (square[0] * self.square_size, square[1] * self.square_size, self.square_size, self.square_size))
+
+		if origin != None:
+			pygame.draw.rect(self.screen, HIGH, (origin[0] * self.square_size, origin[1] * self.square_size, self.square_size, self.square_size))
+
+	def update_display(self, board, legal_moves, selected_piece):
+
+		self.screen.blit(self.background, (0,0))
+
+		self.highlight_squares(legal_moves, selected_piece)
+		self.draw_board_pieces(board)
+
+		if self.message:
+			self.screen.blit(self.text_surface_obj, self.text_rect_obj)
+
+		pygame.display.update()
+		self.clock.tick(self.fps)
+
+	def draw_board_squares(self, board):
+
+		for x in range(8):
+			for y in range(8):
+				pygame.draw.rect(self.screen, board[x][y].color, (x * self.square_size, y * self.square_size, self.square_size, self.square_size), )
+
+	def draw_board_pieces(self, board):
+
+		for x in range(8):
+			for y in range(8):
+				if board.matrix[x][y].squarePiece != None:
+					pygame.draw.circle(self.screen, board.matrix[x][y].squarePiece.color, tuple(map(int, self.pixel_coords((x, y)))), int(self.piece_size))
+
+					if board.getSquare(x, y).squarePiece.king == True:
+						pygame.draw.circle(self.screen, GOLD, self.pixel_coords((x, y)), int(self.piece_size // 1.7), self.piece_size // 4)
+
+
+
+
+
+
+	def draw_message(self, message):
+		"""
+		Draws message to the screen.
+		"""
+		self.message = True
+		self.font_obj = pygame.font.Font('ChrustyRock-ORLA.ttf', 44)
+		self.text_surface_obj = self.font_obj.render(message, True, HIGH, BLACK)
+		self.text_rect_obj = self.text_surface_obj.get_rect()
+		self.text_rect_obj.center = (self.window_size // 2, self.window_size // 2)
+
+
+
+
+# Used to create matrix
+class Square:
+	def __init__(self, color, squarePiece = None):
+		self.color = color # color of board square
+		self.squarePiece = squarePiece
+
+
+"""
+The Game class controls the overall game flow,which has several methods for setting up the game,
+updating the game state, and terminating the game. It also has a main method that runs the game loop.
+"""
+
+
+class Game:
+
+	def __init__(self, loop_mode):
+		self.graphics = Graphics()
+		self.board = Board()
+		self.endGame = False
+		self.turn = GREY
+		self.selected_piece = None
+		self.continue_playing = False
+		self.loop_mode = loop_mode
+		self.selected_legal_moves = []
+
+	def setup(self):
+		self.graphics.setup_window()
+
+	def update(self):
+		self.graphics.update_display(self.board, self.selected_legal_moves, self.selected_piece)
+
+	def terminate_game(self):
+		pygame.quit()
+		sys.exit()
+
+	def main(self):
+		self.setup()
+
+		while True: # main game loop
+			self.player_turn()
+			self.update()
+
+	def end_turn(self):
+		if self.turn == GREY:
+			self.turn = PURPLE
+		else:
+			self.turn = GREY
+
+		self.selected_piece = None
+		self.selected_legal_moves = []
+		self.continue_playing = False
+
+		if self.check_for_endgame():
+			if self.turn == GREY:
+				self.graphics.draw_message("PURPLE WINS!")
+			else:
+				self.graphics.draw_message("GREY WINS!")
+			if(self.loop_mode):
+				self.endGame = True
+			else:
+				self.terminate_game()
+
+	def check_for_endgame(self):
+		for x in range(8):
+			for y in range(8):
+				if self.board.getSquare(x, y).color == BLACK and self.board.getSquare(x, y).squarePiece != None and self.board.getSquare(x, y).squarePiece.color == self.turn:
+					if self.board.get_valid_legal_moves(x, y) != []:
+						return False
+
+		return True
