@@ -355,3 +355,278 @@ class Bot:
                 # Return the best move and its score
                 return bestLocation, bestMove, min_value
 
+    """
+        Implementation of the alpha-beta pruning algorithm for a two-player checkers game.
+
+        Parameters:
+            depth (int): The maximum depth to search the game tree.
+            board (list): The current state of the game board.
+            fn (str): The name of the function to maximize ('max') or minimize ('min') the value of.
+            alpha (float): The best value that the maximizing player can guarantee at this point or better.
+            beta (float): The best value that the minimizing player can guarantee at this point or worse.
+
+        Returns:
+            tuple: A tuple containing the best position, action, and value.
+        """
+    def alphaBeta(self, depth, board, fn, alpha, beta):
+        # Base case: If depth is zero, return the best position, action, and value using the current evaluation function
+        if depth == 0:
+            if fn == 'max':
+                max_value = -float("inf")
+                best_pos = None
+                best_action = None
+                # Generate all possible moves for the current player and loop through them
+                for pos in self.generatemove_at_a_time(board):
+                    for action in pos[2]:
+                        # Make a copy of the board and simulate the move
+                        board_clone = deepcopy(board)
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        self.moveOnBoard(board_clone, pos, action)
+                        # Evaluate the resulting board state
+                        moveValue = self._current_eval(board_clone)
+                        # Undo the move and switch back the player turn
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        # If the evaluated value is better than the current max value, update the best position, action, and value
+                        if moveValue > max_value:
+                            max_value = moveValue
+                            best_pos = pos
+                            best_action = (action[0], action[1])
+                        # If the evaluated value is the same as the current max value, randomly choose between the two options
+                        elif moveValue == max_value and random.random() <= 0.5:
+                            max_value = moveValue
+                            best_pos = (pos[0], pos[1])
+                            best_action = (action[0], action[1])
+                        # If the evaluated value is -inf and the best position is still None, update the best position and action
+                        if(moveValue == -float("inf") and best_pos is  None):
+                            best_pos = (pos[0], pos[1])
+                            best_action = (action[0], action[1])
+                        # Update the alpha value
+                        alpha = max(alpha, max_value)
+                        # If beta is less than or equal to alpha, prune the remaining branches.
+                        if beta < alpha:
+                            break
+                    if beta < alpha:
+                        break
+                    # Return the best position, action, and value
+                return best_pos, best_action, max_value
+            # If the current function is 'min', do the same as above, but with the minimum value instead of the maximum value
+            else:
+                min_value = float("inf")
+                best_pos = None
+                best_action = None
+                for pos in self.generatemove_at_a_time(board):
+                    for action in pos[2]:
+                        board_clone = deepcopy(board)
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        self.moveOnBoard(board_clone, pos, action)
+                        moveValue = self._current_eval(board_clone)
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        if moveValue < min_value:
+                            min_value = moveValue
+                            best_pos = pos
+                            best_action = action
+                        elif moveValue == min_value and random.random() <= 0.5:
+                            min_value = moveValue
+                            best_pos = pos
+                            best_action = action
+                        if(moveValue == float("inf") and best_pos is  None):
+                            best_pos = (pos[0], pos[1])
+                            best_action = (action[0], action[1])
+                        beta = min(beta, min_value)
+                        if beta < alpha:
+
+                            break
+                    if beta < alpha:
+                        break
+                return best_pos, best_action, min_value
+        else:
+            if fn == 'max':
+                max_value = -float("inf")
+                best_pos = None
+                best_action = None
+                for pos in self.generatemove_at_a_time(board):
+                    for action in pos[2]:
+                        board_clone = deepcopy(board)
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        self.moveOnBoard(board_clone, pos, action)
+                        # If the game has ended, set the step value to infinity.
+                        if self.endGameCheck(board_clone):
+                            moveValue = float("inf")
+                        else:
+                            # Recursively call the alphaBeta function with a decreased depth and the AI player's turn.
+                            _, _, moveValue = self.alphaBeta(depth - 1, board_clone, 'min', alpha, beta)
+                        # Switch back to the AI player's turn and update the best value and move if necessary.
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+
+                        if(moveValue is None):
+                            continue
+                        if moveValue > max_value:
+                            max_value = moveValue
+                            best_pos = pos
+                            best_action = action
+                        # If the current value is equal to the maximum value, randomly choose between the two moves.
+                        elif moveValue == max_value and random.random() <= 0.5:
+                            max_value = moveValue
+                            best_pos = pos
+                            best_action = action
+                        # If the step value is negative infinity, set the best move to the current move.
+                        if(moveValue == -float("inf") and best_pos is  None):
+                            best_pos = (pos[0], pos[1])
+                            best_action = (action[0], action[1])
+                        alpha = max(alpha, max_value)
+                        # If beta is less than or equal to alpha, prune the remaining branches.
+                        if beta <= alpha:
+                            break
+                    # If beta is less than or equal to alpha, prune the remaining branches.
+                    if beta < alpha:
+                        break
+                return best_pos, best_action, max_value
+            else:
+                min_value = float("inf")
+                best_pos = None
+                best_action = None
+                for pos in self.generatemove_at_a_time(board):
+                    for action in pos[2]:
+                        board_clone = deepcopy(board)
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        self.moveOnBoard(board_clone, pos, action)
+                        if self.endGameCheck(board_clone):
+                            moveValue = -float("inf")
+                        else:
+                            # Recursively call the alphaBeta function with a decreased depth and the AI player's turn.
+                            _, _, moveValue = self.alphaBeta(depth - 1, board_clone, 'max', alpha, beta)
+                        # Switch back to the opponent's turn and update the best value and move if necessary.
+                        self.color, self.opponent_color = self.opponent_color, self.color
+                        self.game.turn = self.color
+                        if(moveValue is None):
+                            continue
+                        if moveValue < min_value:
+                            min_value = moveValue
+                            best_pos = (pos[0], pos[1])
+                            best_action = (action[0], action[1])
+                        # If the current value is equal to the minimum value, randomly choose between the two moves.
+                        elif moveValue == min_value and random.random() <= 0.5:
+                            min_value = moveValue
+                            best_pos = pos
+                            best_action = action
+                        # If the step value is positive infinity, set the best move to the current move.
+                        if(moveValue == float("inf") and best_pos is  None):
+                            best_pos = (pos[0], pos[1])
+                            best_action = (action[0], action[1])
+                        beta = min(beta, min_value)
+                        # If beta is less than alpha, prune the remaining branches.
+                        if beta < alpha:
+                            break
+                    # If beta is less than alpha, prune the remaining branches.
+                    if beta < alpha:
+                        break
+                return best_pos, best_action, min_value
+
+    def evaluate(self, board):
+        score = 0
+        num_pieces = 0
+        # Evaluate the board position based on the current player's color
+        if (self.eval_color == PURPLE):
+            for i in range(8):
+                for j in range(8):
+                    squarePiece = board.getSquare(i, j).squarePiece
+                    if (squarePiece is not None):
+                        num_pieces += 1
+                        # Evaluate the score based on the type and position of the piece
+                        if squarePiece.color == self.eval_color and squarePiece.king:
+                            score += 10
+                        elif squarePiece.color != self.eval_color and squarePiece.king:
+                            score -= 10
+                        elif squarePiece.color == self.eval_color and j < 4:
+                            score += 5
+                        elif squarePiece.color != self.eval_color and j < 4:
+                            score -= 7
+                        elif squarePiece.color == self.eval_color and j >= 4:
+                            score += 7
+                        elif squarePiece.color != self.eval_color and j >= 4:
+                            score -= 5
+        else:
+            for i in range(8):
+                for j in range(8):
+                    squarePiece = board.getSquare(i, j).squarePiece
+                    if (squarePiece is not None):
+                        num_pieces += 1
+                        # Evaluate the score based on the type and position of the piece
+                        if squarePiece.color == self.eval_color and squarePiece.king:
+                            score += 10
+                        elif squarePiece.color != self.eval_color and squarePiece.king:
+                            score -= 10
+                        elif squarePiece.color == self.eval_color and j < 4:
+                            score += 7
+                        elif squarePiece.color != self.eval_color and j < 4:
+                            score -= 5
+                        elif squarePiece.color == self.eval_color and j >= 4:
+                            score += 7
+                        elif squarePiece.color != self.eval_color and j >= 4:
+                            score -= 5
+        # Return the average score per piece on the board
+        return score / num_pieces
+
+    def allPiecesLocation(self, board):
+        """
+        Returns the locations of all pieces on the board for the current player and the opponent.
+
+        Parameters:
+        board (Board): The current state of the game board.
+
+        Returns:
+        tuple: A tuple of two lists, one containing the locations of the current player's pieces and one containing
+               the locations of the opponent's pieces.
+        """
+        # Initialize empty lists to store the locations of the current player's pieces and the opponent's pieces.
+        player_pieces = []
+        opponent_pieces = []
+
+        # Iterate over each square on the board.
+        for i in range(8):
+            for j in range(8):
+                # Get the piece on the current square, if any.
+                squarePiece = board.getSquare(i, j).squarePiece
+                if (squarePiece is not None):
+                    # If there is a piece on the current square, add its location to the appropriate list
+                    # based on its color.
+                    if (squarePiece.color == self.eval_color):
+                        player_pieces.append((i, j))
+                    else:
+                        opponent_pieces.append((i, j))
+
+        # Return a tuple containing the lists of the current player's pieces and the opponent's pieces.
+        return player_pieces, opponent_pieces
+
+    def evaluateDistance(self, board):
+        # Calculate the sum of distances between all player pieces and opponent pieces on the board
+        player_pieces, adversary_pieces = self.allPiecesLocation(board)
+        sum_of_dist = 0
+        for pos in player_pieces:
+            for adv in adversary_pieces:
+                sum_of_dist += self.distance(pos[0], pos[1], adv[0], adv[1])
+        # If the player has more pieces than the opponent, negate the sum of distances
+        if (len(player_pieces) >= len(adversary_pieces)):
+            sum_of_dist *= -1
+        return sum_of_dist
+
+    # Determine whether the current board position corresponds to an endgame phase
+    def endGameCheck(self, board):
+        # Iterate over every square on the board
+        for x in range(8):
+            for y in range(8):
+                # Check whether the square is occupied by a piece of the player whose turn it is
+                if board.getSquare(x, y).color == BLACK and board.getSquare(x,y).squarePiece is not None and board.getSquare(x, y).squarePiece.color == self.game.turn:
+                    # Check whether the piece has any legal moves available
+                    if board.get_valid_legal_moves(x, y) != []:
+                        # If the piece has legal moves available, the game is not in an endgame phase
+                        return False
+        # If no player piece has legal moves available, the game is in an endgame phase
+        return True
